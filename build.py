@@ -35,11 +35,16 @@ def render(config, articles):
             f'<cite>— {html.escape(q["speaker"])}</cite></blockquote>'
             for q in a.get("ohio_quotes", [])
         )
+        figures = "".join(
+            f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
+            for src in a.get("images", [])
+        )
         cards.append(f"""
     <article class="story" id="{html.escape(a['slug'])}">
       <div class="kicker">Real news &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
       <h2>{html.escape(a['headline'])}</h2>
       <p class="dek">{html.escape(a['dek'])}</p>
+      {figures}
       <h3>What actually happened</h3>
       {paras(a['real_summary'])}
       <p class="source">Based on {html.escape(a['source_name'])} reporting, {html.escape(a['real_event_date'])}. <a href="{html.escape(a['source_url'])}">Read the real story</a>.</p>
@@ -64,6 +69,7 @@ def render(config, articles):
   .parody {{ background: #fff3cd; border-bottom: 2px solid #1c1a17; text-align: center; padding: 10px 16px; font-family: system-ui, sans-serif; font-size: .9rem; }}
   main {{ max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }}
   .story {{ background: #fff; border: 2px solid #1c1a17; box-shadow: 5px 5px 0 #1c1a17; padding: 28px; margin-bottom: 32px; }}
+  .story img {{ max-width: 100%; height: auto; display: block; margin: 12px 0; }}
   .kicker {{ font-family: system-ui, sans-serif; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: #bb0000; font-weight: 700; }}
   h2 {{ font-size: 1.9rem; line-height: 1.2; margin: .4em 0 .3em; }}
   .dek {{ font-size: 1.15rem; color: #555; font-style: italic; }}
