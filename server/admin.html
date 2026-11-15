@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real Ohio — Masthead</title>
+<style>
+  body { margin: 0; background: #f7f3ea; color: #1c1a17; font-family: system-ui, sans-serif; line-height: 1.5; }
+  header { background: #bb0000; color: #fff; padding: 18px 20px; }
+  header h1 { margin: 0; font-family: Georgia, serif; font-size: 1.8rem; }
+  header p { margin: 2px 0 0; font-style: italic; opacity: .9; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; }
+  .card { background: #fff; border: 2px solid #1c1a17; box-shadow: 4px 4px 0 #1c1a17; padding: 20px; margin-bottom: 20px; }
+  label { display: block; font-weight: 700; font-size: .9rem; margin: 14px 0 4px; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; font: inherit; border: 1.5px solid #999; border-radius: 4px; }
+  textarea { min-height: 110px; }
+  button { font: inherit; font-weight: 700; padding: 9px 16px; border: 2px solid #1c1a17; border-radius: 4px; background: #bb0000; color: #fff; cursor: pointer; margin: 6px 6px 0 0; }
+  button.secondary { background: #fff; color: #1c1a17; }
+  button.danger { background: #fff; color: #bb0000; border-color: #bb0000; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .8rem; font-weight: 700; }
+  .badge.draft { background: #ffe08a; }
+  .badge.published { background: #b7e4b7; }
+  .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .muted { color: #666; font-size: .9rem; }
+  .error { color: #bb0000; font-weight: 700; }
+  .hint { font-size: .85rem; color: #666; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header><h1>Real Ohio — Masthead</h1><p>Real Ohio for Real Ohioans &middot; drafts first, publish when ready</p></header>
+<main>
+  <div id="login-card" class="card" hidden>
+    <h2>Log in</h2>
+    <p class="muted">Admin accounts are created on the command line — there is no signup here. Ask whoever runs the site to add you.</p>
+    <label>Username <input id="login-user" autocomplete="username"></label>
+    <label>Password <input id="login-pass" type="password" autocomplete="current-password"></label>
+    <p class="error" id="login-error"></p>
+    <button id="login-btn">Log in</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="row"><p>Logged in as <strong id="me"></strong></p><button class="secondary" id="logout-btn">Log out</button></div>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Articles</h2><button id="new-btn">+ New draft</button></div>
+      <p class="muted">Only <strong>published</strong> articles appear on the public site. Drafts are visible here only.</p>
+      <div id="list"></div>
+    </div>
+
+    <div class="card" id="editor" hidden>
+      <h2 id="editor-title">Edit draft</h2>
+      <label>Slug (lowercase, dashes — set once, cannot change) <input id="f-slug"></label>
+      <label>Date <input id="f-date" type="date"></label>
+      <label>Headline <input id="f-headline"></label>
+      <label>Deck / subtitle <input id="f-dek"></label>
+      <label>Ohio town <input id="f-town" placeholder="Findlay, Ohio"></label>
+      <label>Real event date <input id="f-event-date" type="date"></label>
+      <label>Source name <input id="f-source-name" placeholder="Associated Press"></label>
+      <label>Source URL <input id="f-source-url"></label>
+      <label>What actually happened — one paragraph per blank line <textarea id="f-real"></textarea></label>
+      <label>Meanwhile, in Ohio — one paragraph per blank line <textarea id="f-ohio"></textarea></label>
+      <label>Quotes — one per line, as: Speaker | quote <textarea id="f-quotes" style="min-height:70px"></textarea></label>
+      <p class="error" id="edit-error"></p>
+      <p class="muted" id="edit-status"></p>
+      <button id="save-btn">Save draft</button>
+      <button id="publish-btn">Publish</button>
+      <button id="unpublish-btn" class="secondary">Unpublish (back to draft)</button>
+      <button id="delete-btn" class="danger">Delete</button>
+      <button id="close-btn" class="secondary">Close</button>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">After publishing</h2>
+      <p class="muted">Publishing rebuilds the public site immediately on this server. To keep GitHub in sync (the MuseCases flow), commit and push from the repo checkout on popcorn:</p>
+      <p><code>cd /root/work/real-ohio &amp;&amp; git add -A &amp;&amp; git commit -m "Publish: &lt;headline&gt;" &amp;&amp; git push</code></p>
+    </div>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let currentSlug = null, isNew = false;
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("Request failed: " + r.status));
+  return data;
+}
+function paraText(arr) { return (arr || []).join("\n\n"); }
+function quotesText(arr) { return (arr || []).map(q => (q.speaker ? q.speaker + " | " : "") + q.quote).join("\n"); }
+
+async function loadList() {
+  const { articles } = await api("/api/articles");
+  $("list").innerHTML = articles.map(a => `
+    <div class="row" style="border-top:1px solid #ddd; padding:12px 0">
+      <div><span class="badge ${a.status}">${a.status}</span> <strong>${escapeHtml(a.headline)}</strong>
+      <div class="muted">${escapeHtml(a.date)} &middot; ${escapeHtml(a.ohio_town || "")} &middot; ${escapeHtml(a.slug)}</div></div>
+      <div><button class="secondary" onclick="openEditor('${a.slug}')">Edit</button></div>
+    </div>`).join("") || "<p class='muted'>No articles yet.</p>";
+}
+function escapeHtml(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+window.openEditor = async (slug) => {
+  const { article: a } = await api("/api/articles/" + encodeURIComponent(slug));
+  currentSlug = slug; isNew = false;
+  $("editor-title").textContent = "Edit — " + a.status;
+  $("f-slug").value = a.slug; $("f-slug").disabled = true;
+  $("f-date").value = a.date || ""; $("f-headline").value = a.headline || "";
+  $("f-dek").value = a.dek || ""; $("f-town").value = a.ohio_town || "";
+  $("f-event-date").value = a.real_event_date || "";
+  $("f-source-name").value = a.source_name || ""; $("f-source-url").value = a.source_url || "";
+  $("f-real").value = paraText(a.real_summary); $("f-ohio").value = paraText(a.ohio_story);
+  $("f-quotes").value = quotesText(a.ohio_quotes);
+  $("edit-status").textContent = "Last edited by " + (a.author || "—") + " at " + (a.updated_at || "—");
+  $("publish-btn").hidden = a.status === "published";
+  $("unpublish-btn").hidden = a.status !== "published";
+  $("editor").hidden = false; $("edit-error").textContent = "";
+  window.scrollTo({ top: $("editor").offsetTop, behavior: "smooth" });
+};
+
+function formBody() {
+  return {
+    slug: $("f-slug").value.trim(), date: $("f-date").value,
+    headline: $("f-headline").value, dek: $("f-dek").value,
+    ohio_town: $("f-town").value, real_event_date: $("f-event-date").value,
+    source_name: $("f-source-name").value, source_url: $("f-source-url").value,
+    real_summary: $("f-real").value, ohio_story: $("f-ohio").value,
+    ohio_quotes_text: $("f-quotes").value,
+  };
+}
+async function init() {
+  try {
+    const { username } = await api("/api/me");
+    $("me").textContent = username;
+    $("login-card").hidden = true; $("app").hidden = false;
+    await loadList();
+  } catch {
+    $("login-card").hidden = false; $("app").hidden = true;
+  }
+}
+$("login-btn").onclick = async () => {
+  try {
+    await api("/api/login", { method: "POST", body: JSON.stringify({ username: $("login-user").value.trim(), password: $("login-pass").value }) });
+    $("login-error").textContent = ""; init();
+  } catch (e) { $("login-error").textContent = e.message; }
+};
+$("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") $("login-btn").click(); });
+$("logout-btn").onclick = async () => { await api("/api/logout", { method: "POST" }); init(); };
+$("new-btn").onclick = () => {
+  currentSlug = null; isNew = true;
+  $("editor-title").textContent = "New draft";
+  for (const id of ["f-slug","f-date","f-headline","f-dek","f-town","f-event-date","f-source-name","f-source-url","f-real","f-ohio","f-quotes"]) $(id).value = "";
+  $("f-slug").disabled = false; $("f-date").value = new Date().toISOString().slice(0,10);
+  $("publish-btn").hidden = true; $("unpublish-btn").hidden = true;
+  $("editor").hidden = false; $("edit-status").textContent = "Saved as a draft — it will not appear on the public site until you publish it.";
+};
+$("save-btn").onclick = async () => {
+  try {
+    if (isNew) {
+      const { article } = await api("/api/articles", { method: "POST", body: JSON.stringify(formBody()) });
+      currentSlug = article.slug; isNew = false; $("f-slug").disabled = true;
+      $("publish-btn").hidden = false;
+    } else {
+      await api("/api/articles/" + encodeURIComponent(currentSlug), { method: "PUT", body: JSON.stringify(formBody()) });
+    }
+    $("edit-error").textContent = ""; $("edit-status").textContent = "Saved as draft.";
+    await loadList();
+  } catch (e) { $("edit-error").textContent = e.message; }
+};
+$("publish-btn").onclick = async () => {
+  try {
+    if (isNew) await $("save-btn").onclick();
+    await api("/api/articles/" + encodeURIComponent(currentSlug) + "/publish", { method: "POST" });
+    $("edit-status").textContent = "Published — it is now on the public site.";
+    await loadList(); openEditor(currentSlug);
+  } catch (e) { $("edit-error").textContent = e.message; }
+};
+$("unpublish-btn").onclick = async () => {
+  await api("/api/articles/" + encodeURIComponent(currentSlug) + "/unpublish", { method: "POST" });
+  $("edit-status").textContent = "Back to draft — removed from the public site.";
+  await loadList(); openEditor(currentSlug);
+};
+$("delete-btn").onclick = async () => {
+  if (!isNew && confirm("Delete this article permanently?")) {
+    await api("/api/articles/" + encodeURIComponent(currentSlug), { method: "DELETE" });
+    $("editor").hidden = true; await loadList();
+  } else if (isNew) { $("editor").hidden = true; }
+};
+$("close-btn").onclick = () => { $("editor").hidden = true; };
+init();
+</script>
+</body>
+</html>

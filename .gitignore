@@ -1,0 +1,4 @@
+# Admin users (password hashes) — never commit.
+data/users.json
+# Local runtime state
+data/*.log
