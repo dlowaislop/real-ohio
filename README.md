@@ -88,6 +88,24 @@ bun run server.mjs
 # production (systemd, see DEPLOY.md): realohio.service, port 3016
 ```
 
+## News Archive (fake) and Subscribe (fake)
+
+`build.py` also generates `archive.html` and `subscribe.html`, linked
+from the nav on every page. Both are a gag, by design, to make the site
+look like it has a deep back catalog:
+
+- **News Archive:** claims 3,214 stories back to 2019, with per-year
+  counts and six locked teaser headlines — no full stories exist behind
+  it. The login form is client-side only: any attempt shows "Unable to
+  sign in to the archive right now. Please try again later." Nothing is
+  sent or stored.
+- **Subscribe:** $19.99/month, with username, password, email, billing
+  info, and credit card fields. Also client-side only — no form action,
+  no fetch, nothing sent, stored, or charged. Pressing Register always
+  shows "Error processing transaction, please try again later."
+
+Do not "fix" either page into a real login or a real checkout.
+
 ## Changing the domain later
 
 Edit `domain` and `base_url` in `config.json`, run `python3 build.py`,

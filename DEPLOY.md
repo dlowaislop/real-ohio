@@ -26,14 +26,19 @@ git clone git@github.com:dlowaislop/real-ohio.git
 cd /root/work/real-ohio && git pull --ff-only
 ```
 
-## 4. Copy the file to the web root
+## 4. Copy the files to the web root
 
 ```sh
 sudo mkdir -p /var/www/real-ohio
-sudo cp /root/work/real-ohio/index.html /var/www/real-ohio/index.html
+sudo cp /root/work/real-ohio/index.html /root/work/real-ohio/archive.html /root/work/real-ohio/subscribe.html /var/www/real-ohio/
+sudo cp -r /root/work/real-ohio/images /var/www/real-ohio/   # article photos, if present
 sudo chown -R root:root /var/www/real-ohio
-sudo chmod 644 /var/www/real-ohio/index.html
+sudo chmod 644 /var/www/real-ohio/*.html
 ```
+
+`archive.html` / `subscribe.html` are the fake News Archive login and
+fake $19.99/month signup (see README — client-side only, nothing is
+sent, stored, or charged; Register always errors).
 
 ## 5. Apache vhost
 
@@ -80,7 +85,7 @@ commit and push to GitHub, then on popcorn:
 
 ```sh
 cd /root/work/real-ohio && git pull --ff-only
-sudo cp index.html /var/www/real-ohio/index.html
+sudo cp index.html archive.html subscribe.html /var/www/real-ohio/
 ```
 
 No restart needed.
