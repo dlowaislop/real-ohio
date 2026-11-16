@@ -61,7 +61,9 @@ def load_articles():
 def paras(items):
     return "".join(f"<p>{html.escape(p)}</p>" for p in items)
 
-def page_head(config, title, show_parody=True, description=None, canonical=None):
+def page_head(config, title, show_parody=True, description=None, canonical=None, link_prefix=""):
+    # link_prefix is "../" on standalone article pages (stories/), where
+    # the nav targets live one level up; "" everywhere else.
     parody = (
         '<div class="parody"><strong>Parody news.</strong> The news underneath is real. '
         "The Ohioans are not — they're fictional, and any resemblance to an actual Ohio family "
@@ -121,7 +123,7 @@ def page_head(config, title, show_parody=True, description=None, canonical=None)
 </head>
 <body>
 <header><h1>{html.escape(config['site_name'])}</h1><p>{html.escape(config['tagline'])}</p></header>
-<nav><a href="index.html">Latest</a><a href="about.html">About</a><a href="archive.html">News Archive</a><a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></nav>
+<nav><a href="{link_prefix}index.html">Latest</a><a href="{link_prefix}archive.html">News Archive</a><a href="{link_prefix}subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a><a href="{link_prefix}about.html">About</a></nav>
 {parody}
 """
 
@@ -249,7 +251,7 @@ def render_article_page(config, article, newer=None, older=None):
     canonical = f"{config['base_url']}/stories/{article['id']}.html"
     return page_head(config, article['headline'], show_parody=False,
                      description=article.get('dek') or None,
-                     canonical=canonical) + f"""<main>
+                     canonical=canonical, link_prefix="../") + f"""<main>
 <p class="back"><a href="../index.html">&larr; Back to the latest stories</a></p>
 {render_card(article, asset_prefix="../")}
 {nav}
