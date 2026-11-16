@@ -115,7 +115,7 @@ def page_head(config, title, show_parody=True):
 
 def page_foot(config):
     return f"""
-<footer>{html.escape(config['site_name'])} — {html.escape(config['tagline'])} &middot; {html.escape(config['base_url'])}</footer>
+<footer>{html.escape(config['tagline'])} &middot; {html.escape(config['base_url'])}</footer>
 </body>
 </html>
 """
