@@ -61,6 +61,22 @@ function listArticles() {
 }
 function rebuild() {
   execFileSync("python3", ["build.py"], { cwd: ROOT, stdio: "pipe" });
+  // Publish the rebuilt site to the web root, if one is configured and
+  // present. Without this, publish/unpublish only rebuilt index.html in
+  // the checkout and Apache kept serving the stale copy in /var/www.
+  if (WEB_ROOT && fs.existsSync(WEB_ROOT)) {
+    for (const f of ["index.html", "archive.html", "subscribe.html"]) {
+      fs.copyFileSync(path.join(ROOT, f), path.join(WEB_ROOT, f));
+    }
+    const srcImages = path.join(ROOT, "images");
+    const dstImages = path.join(WEB_ROOT, "images");
+    if (fs.existsSync(srcImages)) {
+      fs.mkdirSync(dstImages, { recursive: true });
+      for (const f of fs.readdirSync(srcImages)) {
+        fs.copyFileSync(path.join(srcImages, f), path.join(dstImages, f));
+      }
+    }
+  }
 }
 function sendJson(res, code, obj, extraHeaders = {}) {
   const body = JSON.stringify(obj);

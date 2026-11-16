@@ -85,10 +85,14 @@ commit and push to GitHub, then on popcorn:
 
 ```sh
 cd /root/work/real-ohio && git pull --ff-only
-sudo cp index.html archive.html subscribe.html /var/www/real-ohio/
 ```
 
-No restart needed.
+No manual copy and no restart needed: the admin server copies the
+rebuilt `index.html` / `archive.html` / `subscribe.html` and `images/`
+to `/var/www/real-ohio/` (config `web_root`) after every save, publish,
+unpublish, and delete in `/masthead`, so publishing updates the public
+site immediately. The manual `cp` in step 4 above is only for the
+initial setup.
 
 ## Admin server — drafts, editing, publishing (port 3016)
 
