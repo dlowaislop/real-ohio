@@ -210,8 +210,8 @@ def render_about(config):
 <div class="card">
 <h2>About Real Ohio</h2>
 <p>Real Ohio was founded in 2019 by a group of Ohio journalists who were tired of reading news that never described the impact on our state. We took on a mission to bring everyone not only the news, but also the local perspective.</p>
-<p>Every story here starts with what actually happened — the facts, as reported — and then follows it home to Ohio: what it means for a family in Findlay, a shop owner in Dayton, a classroom in Akron. A national story is only half a story if it never lands where you live.</p>
-<p>We want news to connect with our readers at a human level. A ground stop is a statistic until it's a family stuck at the airport with a cooler full of string cheese; a hurricane is a forecast until it's a roof in Dover. That's the part we try never to leave out.</p>
+<p>Every story here starts with what actually happened — the facts, as reported — and then follows it home to Ohio: what it means for a family in Lima, a shop owner in Defiance, a choir singer in Hamilton. A national story is only half a story if it never lands where you live.</p>
+<p>We want news to connect with our readers at a human level. A gas price is a number until a family in Mansfield starts doing the math out loud; a hurricane is a headline until it's a roof in Dover; a software outage is a status page until a family in Dublin discovers just how much of life runs through Outlook. That's the part we try never to leave out.</p>
 <p>We hope this helps bring our community closer together — neighbors reading the same stories, recognizing their own towns in them, and talking about them at the kitchen table instead of scrolling past. That's the whole idea.</p>
 <p class="muted"><a href="index.html">Read the latest stories</a> &middot; <a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></p>
 </div>
