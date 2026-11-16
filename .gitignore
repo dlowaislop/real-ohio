@@ -5,3 +5,11 @@ data/users.json
 data/published.json
 # Local runtime state
 data/*.log
+# Generated site pages — build output, never committed. Popcorn
+# regenerates them with `python3 build.py` (the admin server rebuilds
+# them after every masthead save/publish, and copies them to the web
+# root). Tracking them meant every publish dirtied the checkout and
+# blocked the next `git pull` with "unstaged changes".
+index.html
+archive.html
+subscribe.html

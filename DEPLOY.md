@@ -26,6 +26,14 @@ git clone git@github.com:dlowaislop/real-ohio.git
 cd /root/work/real-ohio && git pull --ff-only
 ```
 
+The generated pages (`index.html`, `archive.html`, `subscribe.html`)
+are build output and are not in the repo — generate them after
+cloning (and after any pull that changes `build.py`):
+
+```sh
+cd /root/work/real-ohio && python3 build.py
+```
+
 ## 4. Copy the files to the web root
 
 ```sh
@@ -87,12 +95,27 @@ commit and push to GitHub, then on popcorn:
 cd /root/work/real-ohio && git pull --ff-only
 ```
 
-No manual copy and no restart needed: the admin server copies the
-rebuilt `index.html` / `archive.html` / `subscribe.html` and `images/`
-to `/var/www/real-ohio/` (config `web_root`) after every save, publish,
-unpublish, and delete in `/masthead`, so publishing updates the public
-site immediately. The manual `cp` in step 4 above is only for the
-initial setup.
+A pull no longer touches the live site by itself, and publishing in
+`/masthead` no longer dirties the checkout: the generated pages are
+untracked build output, and publish state is gitignored, so after a
+publish the tree stays clean and the next pull just works. To refresh
+the live site after a pull that changes code or `build.py`, either
+do any save/publish/unpublish in `/masthead` — the admin server
+rebuilds and copies `index.html` / `archive.html` / `subscribe.html`
+and `images/` to `/var/www/real-ohio/` (config `web_root`) — or run
+manually:
+
+```sh
+cd /root/work/real-ohio && python3 build.py
+sudo cp index.html archive.html subscribe.html /var/www/real-ohio/
+```
+
+No restart needed for content or `build.py` changes; restart
+`realohio` only when `server.mjs` changes.
+
+One exception: if you edit a draft's text in `/masthead` on popcorn
+and don't push it, that article file is a local change and a later
+pull can still complain about it — commit or stash it first.
 
 ## Admin server — drafts, editing, publishing (port 3016)
 
