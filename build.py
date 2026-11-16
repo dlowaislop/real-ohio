@@ -123,27 +123,36 @@ def page_foot(config):
 </html>
 """
 
+def figure(a, src):
+    return f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
+
 def render_card(a):
     quotes = "".join(
         f'<blockquote><p>“{html.escape(q["quote"])}”</p>'
         f'<cite>— {html.escape(q["speaker"])}</cite></blockquote>'
         for q in a.get("ohio_quotes", [])
     )
-    figures = "".join(
-        f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
-        for src in a.get("images", [])
-    )
+    # Images are spread through the article, not stacked at the top:
+    # the first (real event) goes after "What actually happened", the
+    # second (the Ohioan) after "Meanwhile, in Ohio". Any further
+    # images follow the quotes, in order.
+    images = a.get("images", [])
+    first = figure(a, images[0]) if len(images) > 0 else ""
+    second = figure(a, images[1]) if len(images) > 1 else ""
+    rest = "".join(figure(a, src) for src in images[2:])
     return f"""
     <article class="story" id="{html.escape(a['slug'])}">
       <div class="kicker">Real news about Real Ohioans &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
       <h2>{html.escape(a['headline'])}</h2>
       <p class="dek">{html.escape(a['dek'])}</p>
-      {figures}
       <h3>What actually happened</h3>
       {paras(a['real_summary'])}
+      {first}
       <h3>Meanwhile, in Ohio</h3>
       {paras(a['ohio_story'])}
+      {second}
       {quotes}
+      {rest}
     </article>"""
 
 def page_filename(n):
