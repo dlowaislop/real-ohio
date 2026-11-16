@@ -125,6 +125,21 @@ function rebuild() {
         fs.copyFileSync(path.join(srcImages, f), path.join(dstImages, f));
       }
     }
+    // Standalone article pages (stories/<slug>.html). Copy the ones
+    // build.py just wrote, and remove stale ones (e.g. after an
+    // unpublish) so old stories don't linger on the public site.
+    const srcStories = path.join(ROOT, "stories");
+    const dstStories = path.join(WEB_ROOT, "stories");
+    if (fs.existsSync(srcStories)) {
+      fs.mkdirSync(dstStories, { recursive: true });
+      const storyFiles = fs.readdirSync(srcStories).filter((f) => f.endsWith(".html"));
+      for (const f of storyFiles) {
+        fs.copyFileSync(path.join(srcStories, f), path.join(dstStories, f));
+      }
+      for (const f of fs.readdirSync(dstStories).filter((f) => f.endsWith(".html"))) {
+        if (!storyFiles.includes(f)) fs.unlinkSync(path.join(dstStories, f));
+      }
+    }
   }
 }
 function sendJson(res, code, obj, extraHeaders = {}) {

@@ -61,7 +61,7 @@ def load_articles():
 def paras(items):
     return "".join(f"<p>{html.escape(p)}</p>" for p in items)
 
-def page_head(config, title, show_parody=True):
+def page_head(config, title, show_parody=True, description=None, canonical=None):
     parody = (
         '<div class="parody"><strong>Parody news.</strong> The news underneath is real. '
         "The Ohioans are not — they're fictional, and any resemblance to an actual Ohio family "
@@ -69,13 +69,15 @@ def page_head(config, title, show_parody=True):
         if show_parody
         else ""
     )
+    desc = description if description is not None else config['description']
+    canon = f'\n<link rel="canonical" href="{html.escape(canonical)}">' if canonical else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} — {html.escape(config['site_name'])}</title>
-<meta name="description" content="{html.escape(config['description'])}">
+<meta name="description" content="{html.escape(desc)}">{canon}
 <style>
   body {{ margin: 0; background: #f7f3ea; color: #1c1a17; font-family: Georgia, 'Times New Roman', serif; line-height: 1.6; }}
   header {{ background: #bb0000; color: #fff; padding: 28px 20px 22px; text-align: center; border-bottom: 6px solid #1c1a17; }}
@@ -109,6 +111,11 @@ def page_head(config, title, show_parody=True):
   .pagination {{ text-align: center; font-family: system-ui, sans-serif; font-weight: 700; margin: 8px 0 32px; }}
   .pagination a {{ text-decoration: none; }}
   .pagination a:hover {{ text-decoration: underline; }}
+  .story h2 a {{ color: inherit; text-decoration: none; }}
+  .story h2 a:hover {{ text-decoration: underline; }}
+  .back {{ font-family: system-ui, sans-serif; font-weight: 700; margin-bottom: 20px; }}
+  .back a {{ text-decoration: none; }}
+  .back a:hover {{ text-decoration: underline; }}
   .price {{ font-size: 2rem; font-weight: 700; font-family: system-ui, sans-serif; }}
 </style>
 </head>
@@ -125,10 +132,12 @@ def page_foot(config):
 </html>
 """
 
-def figure(a, src):
-    return f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
+def figure(a, src, prefix=""):
+    return f'<figure><img src="{html.escape(prefix + src)}" alt="{html.escape(a["headline"])}"></figure>'
 
-def render_card(a):
+def render_card(a, link_headline=False, asset_prefix=""):
+    # asset_prefix is "../" on standalone article pages (stories/),
+    # where the images live one level up; "" on the front pages.
     quotes = "".join(
         f'<blockquote><p>“{html.escape(q["quote"])}”</p>'
         f'<cite>— {html.escape(q["speaker"])}</cite></blockquote>'
@@ -139,13 +148,16 @@ def render_card(a):
     # second (the Ohioan) after "Meanwhile, in Ohio". Any further
     # images follow the quotes, in order.
     images = a.get("images", [])
-    first = figure(a, images[0]) if len(images) > 0 else ""
-    second = figure(a, images[1]) if len(images) > 1 else ""
-    rest = "".join(figure(a, src) for src in images[2:])
+    first = figure(a, images[0], asset_prefix) if len(images) > 0 else ""
+    second = figure(a, images[1], asset_prefix) if len(images) > 1 else ""
+    rest = "".join(figure(a, src, asset_prefix) for src in images[2:])
+    headline = html.escape(a['headline'])
+    if link_headline:
+        headline = f'<a href="stories/{html.escape(a["slug"])}.html">{headline}</a>'
     return f"""
     <article class="story" id="{html.escape(a['slug'])}">
       <div class="kicker">Real news about Real Ohioans &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
-      <h2>{html.escape(a['headline'])}</h2>
+      <h2>{headline}</h2>
       <p class="dek">{html.escape(a['dek'])}</p>
       <h3>What actually happened</h3>
       {paras(a['real_summary'])}
@@ -162,7 +174,7 @@ def page_filename(n):
     return "index.html" if n == 1 else f"page{n}.html"
 
 def render_index_page(config, page_articles, page, total_pages):
-    stories = "\n".join(render_card(a) for a in page_articles)
+    stories = "\n".join(render_card(a, link_headline=True) for a in page_articles)
     links = []
     if page > 1:
         links.append(f'<a href="{page_filename(page - 1)}">&larr; Newer stories</a>')
@@ -217,6 +229,49 @@ def render_about(config):
 </div>
 </main>
 """ + page_foot(config)
+
+def render_article_page(config, article, newer=None, older=None):
+    """One standalone page per article, at stories/<slug>.html.
+
+    Same card as the front page (images spread through the story), but
+    the headline is not a link to itself. Each page carries its own
+    <title>, meta description, and canonical URL, and links to the
+    next/previous story — that is the SEO point of these pages.
+    """
+    links = []
+    if newer:
+        links.append(f'<a href="{html.escape(newer["slug"])}.html">&larr; Newer: {html.escape(newer["headline"])}</a>')
+    if older:
+        links.append(f'<a href="{html.escape(older["slug"])}.html">Older: {html.escape(older["headline"])} &rarr;</a>')
+    nav = ""
+    if links:
+        nav = '<nav class="pagination">' + " &middot; ".join(links) + "</nav>"
+    canonical = f"{config['base_url']}/stories/{article['slug']}.html"
+    return page_head(config, article['headline'], show_parody=False,
+                     description=article.get('dek') or None,
+                     canonical=canonical) + f"""<main>
+<p class="back"><a href="../index.html">&larr; Back to the latest stories</a></p>
+{render_card(article, asset_prefix="../")}
+{nav}
+</main>
+""" + page_foot(config)
+
+def render_article_pages(config, articles):
+    """Write stories/<slug>.html for every published article and delete
+    stale ones (e.g. after an unpublish). Returns the filenames written.
+    """
+    out_dir = ROOT / "stories"
+    out_dir.mkdir(exist_ok=True)
+    for stale in out_dir.glob("*.html"):
+        stale.unlink()
+    written = []
+    for i, a in enumerate(articles):
+        newer = articles[i - 1] if i > 0 else None
+        older = articles[i + 1] if i + 1 < len(articles) else None
+        filename = f"{a['slug']}.html"
+        (out_dir / filename).write_text(render_article_page(config, a, newer, older))
+        written.append(filename)
+    return written
 
 def render_archive(config):
     # Locked teaser rows: invented parody headlines, members-only, no
@@ -312,10 +367,12 @@ if __name__ == "__main__":
     pages = render_index(config, articles)
     for filename, text in pages:
         (ROOT / filename).write_text(text)
+    story_pages = render_article_pages(config, articles)
     (ROOT / "about.html").write_text(render_about(config))
     (ROOT / "archive.html").write_text(render_archive(config))
     (ROOT / "subscribe.html").write_text(render_subscribe(config))
     print(f"Built index.html: {len(articles)} article(s), domain {config['domain']}")
     if len(pages) > 1:
         print(f"Paginated into {len(pages)} pages ({config.get('articles_per_page', 5)} per page): " + ", ".join(f for f, _ in pages))
+    print(f"Built {len(story_pages)} standalone article page(s) in stories/")
     print("Built about.html, archive.html and subscribe.html (fake archive / fake $19.99/month signup — client-side only, nothing sent or stored)")
