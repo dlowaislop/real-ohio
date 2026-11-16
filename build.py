@@ -42,7 +42,14 @@ def load_articles():
 def paras(items):
     return "".join(f"<p>{html.escape(p)}</p>" for p in items)
 
-def page_head(config, title):
+def page_head(config, title, show_parody=True):
+    parody = (
+        '<div class="parody"><strong>Parody news.</strong> The news underneath is real. '
+        "The Ohioans are not — they're fictional, and any resemblance to an actual Ohio family "
+        "is a coincidence, probably from Findlay.</div>"
+        if show_parody
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -86,7 +93,7 @@ def page_head(config, title):
 <body>
 <header><h1>{html.escape(config['site_name'])}</h1><p>{html.escape(config['tagline'])}</p></header>
 <nav><a href="index.html">Latest</a><a href="archive.html">News Archive</a><a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></nav>
-<div class="parody"><strong>Parody news.</strong> The news underneath is real. The Ohioans are not — they're fictional, and any resemblance to an actual Ohio family is a coincidence, probably from Findlay.</div>
+{parody}
 """
 
 def page_foot(config):
@@ -123,7 +130,7 @@ def render_index(config, articles):
       <p class="disclaimer">{html.escape(a['disclaimer'])}</p>
     </article>""")
     stories = "\n".join(cards)
-    return page_head(config, config['tagline']) + f"""<main>
+    return page_head(config, config['tagline'], show_parody=False) + f"""<main>
 {stories}
 <div class="card"><h2>Looking for older stories?</h2>
 <p>They're all in the <a href="archive.html">News Archive</a> — {html.escape(ARCHIVE_TOTAL)} stories and counting, going back to 2019. Archive access is for subscribers (<a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a>).</p></div>
