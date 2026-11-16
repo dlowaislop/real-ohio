@@ -9,7 +9,7 @@ it home to Ohio, where a fictional local family deals with the fallout.
 Parody: the Ohio people in these stories are fictional. The underlying
 news events are real and sourced.
 
-- Site: https://ohio.randorando.win
+- Site: https://www.realohio.us.com
 - Config: `config.json` — site name, tagline, and domain live here.
   Change the domain in one place and rebuild; nothing else hard-codes it.
 - Articles: `articles/*.json` — one JSON file per story.
@@ -45,7 +45,7 @@ start as drafts, and `build.py` only puts `published` articles into
 `index.html` — drafts never appear on the public site.
 
 Edit and publish in the admin UI at `/masthead`
-(`https://ohio.randorando.win/masthead` once deployed):
+(`https://www.realohio.us.com/masthead` once deployed):
 
 - Log in with a CLI-created username/password (below).
 - **Articles** lists drafts and published stories. **Edit** opens the

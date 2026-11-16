@@ -5,17 +5,22 @@ self-contained `index.html`, no build step on the server, no backend,
 no systemd service. Apache serves it directly.
 
 Target domain (configurable — see `config.json`):
-`ohio.randorando.win`
+`www.realohio.us.com`
+
+`ohio.randorando.win` was the original domain, retired Nov 16, 2026 —
+see "Retiring ohio.randorando.win" below.
 
 ## 1. GitHub repo (one-time)
 
 Create a private repo `dlowaislop/real-ohio` and push this directory.
 The local copy lives at `~/workspace/real-ohio/`.
 
-## 2. DNS (your step, at your registrar)
+## 2. DNS (your step, in Cloudflare)
 
-Create an A record for `ohio.randorando.win` pointing at popcorn's
-public IP.
+Create an A record for `www.realohio.us.com` pointing at popcorn's
+public IP. Leave it DNS-only (grey cloud) while you get the
+certificate, then flip it to proxied (orange cloud). Set SSL/TLS →
+Overview to **Full (strict)** once the certificate is in place.
 
 ## 3. Checkout on popcorn
 
@@ -56,7 +61,7 @@ Create `/etc/apache2/sites-available/real-ohio.conf`:
 
 ```apache
 <VirtualHost *:80>
-    ServerName ohio.randorando.win
+    ServerName www.realohio.us.com
     DocumentRoot /var/www/real-ohio
 
     <Directory /var/www/real-ohio>
@@ -77,13 +82,21 @@ sudo systemctl reload apache2
 ## 6. HTTPS (recommended)
 
 ```sh
-sudo certbot --apache -d ohio.randorando.win
+sudo certbot --apache -d www.realohio.us.com
 ```
+
+Certbot works behind Cloudflare's proxy — the HTTP-01 challenge
+comes in over port 80, which Cloudflare passes through. One
+exception: if the record is proxied with "Always Use HTTPS" and
+"Full (strict)" before popcorn has any valid cert, the challenge
+gets redirected to HTTPS and fails (chicken-and-egg). Flip the
+record to DNS-only for the issuance, then flip it back. Renewals
+work unattended behind the proxy once a valid cert is in place.
 
 ## 7. Verify
 
 ```sh
-curl -s -o /dev/null -w "%{http_code}\n" https://ohio.randorando.win/
+curl -s -o /dev/null -w "%{http_code}\n" https://www.realohio.us.com/
 ```
 
 Expect `200`.
@@ -176,7 +189,7 @@ sudo a2enmod proxy proxy_http
 sudo systemctl reload apache2
 ```
 
-Admin URL: `https://ohio.randorando.win/masthead`
+Admin URL: `https://www.realohio.us.com/masthead`
 
 ### Create the first admin user(s)
 
@@ -206,6 +219,26 @@ and rebuilds the site — it never changes the draft file, so there is
 nothing to commit or push after you publish. If you edit a draft's
 text in `/masthead` and want that edit in GitHub, commit and push the
 article file from the checkout on popcorn.
+
+## Retiring ohio.randorando.win
+
+The original domain was retired Nov 16, 2026 in favor of
+`www.realohio.us.com`. Once the new domain is live and verified,
+remove the old pieces:
+
+- **DNS:** delete the A record for `ohio.randorando.win`.
+- **Popcorn vhost:** remove any `ServerAlias ohio.randorando.win`
+  from `/etc/apache2/sites-available/real-ohio.conf`, then reload
+  Apache. (The `/masthead` and `/api` proxy directives stay — they
+  live in that vhost and now serve the new name.)
+- **Popcorn certificate:** delete the old Let's Encrypt cert:
+
+  ```sh
+  sudo certbot delete --cert-name ohio.randorando.win
+  ```
+
+  Skip the delete if you want to keep a redirect from the old name —
+  in that case keep the DNS, the alias, and the cert.
 
 ## Changing the domain later
 
