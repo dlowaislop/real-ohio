@@ -117,7 +117,7 @@ def render_index(config, articles):
         )
         cards.append(f"""
     <article class="story" id="{html.escape(a['slug'])}">
-      <div class="kicker">Real news &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
+      <div class="kicker">Real news about Real Ohioans &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
       <h2>{html.escape(a['headline'])}</h2>
       <p class="dek">{html.escape(a['dek'])}</p>
       {figures}

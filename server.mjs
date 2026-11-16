@@ -23,6 +23,12 @@ const ARTICLES_DIR = path.join(ROOT, "articles");
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, "config.json"), "utf8"));
 const PORT = Number(process.env.PORT || config.admin_port || 3016);
 const ADMIN_PATH = config.admin_path || "/masthead";
+// Where the live site is served from (Apache DocumentRoot). After every
+// rebuild the generated HTML + images are copied here, so publishing in
+// /masthead updates the public site immediately. Overridable for tests
+// with WEB_ROOT. Skipped entirely when the directory does not exist
+// (e.g. a local dev checkout), so local builds are unaffected.
+const WEB_ROOT = process.env.WEB_ROOT || config.web_root || null;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const sessions = new Map(); // token -> { username, expires }
 
