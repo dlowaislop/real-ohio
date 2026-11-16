@@ -3,7 +3,9 @@
 
 Usage: python3 build.py
 Reads config.json (domain, tagline) and every articles/*.json file,
-newest first, and writes index.html, archive.html and subscribe.html.
+newest first, and writes index.html, about.html, archive.html and
+subscribe.html (plus page2.html, page3.html, ... when there are more
+published articles than config articles_per_page).
 No dependencies, no network.
 
 The News Archive is a gag, by design: there is no archive behind it.
@@ -112,7 +114,7 @@ def page_head(config, title, show_parody=True):
 </head>
 <body>
 <header><h1>{html.escape(config['site_name'])}</h1><p>{html.escape(config['tagline'])}</p></header>
-<nav><a href="index.html">Latest</a><a href="archive.html">News Archive</a><a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></nav>
+<nav><a href="index.html">Latest</a><a href="about.html">About</a><a href="archive.html">News Archive</a><a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></nav>
 {parody}
 """
 
@@ -202,6 +204,19 @@ def render_index(config, articles):
         (page_filename(n), render_index_page(config, chunk, n, total_pages))
         for n, chunk in enumerate(chunks, start=1)
     ]
+
+def render_about(config):
+    return page_head(config, "About Real Ohio", show_parody=False) + f"""<main>
+<div class="card">
+<h2>About Real Ohio</h2>
+<p>Real Ohio was founded in 2019 by a group of Ohio journalists who were tired of reading news that never described the impact on our state. We took on a mission to bring everyone not only the news, but also the local perspective.</p>
+<p>Every story here starts with what actually happened — the facts, as reported — and then follows it home to Ohio: what it means for a family in Findlay, a shop owner in Dayton, a classroom in Akron. A national story is only half a story if it never lands where you live.</p>
+<p>We want news to connect with our readers at a human level. A ground stop is a statistic until it's a family stuck at the airport with a cooler full of string cheese; a hurricane is a forecast until it's a roof in Dover. That's the part we try never to leave out.</p>
+<p>We hope this helps bring our community closer together — neighbors reading the same stories, recognizing their own towns in them, and talking about them at the kitchen table instead of scrolling past. That's the whole idea.</p>
+<p class="muted"><a href="index.html">Read the latest stories</a> &middot; <a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a></p>
+</div>
+</main>
+""" + page_foot(config)
 
 def render_archive(config):
     # Locked teaser rows: invented parody headlines, members-only, no
@@ -297,9 +312,10 @@ if __name__ == "__main__":
     pages = render_index(config, articles)
     for filename, text in pages:
         (ROOT / filename).write_text(text)
+    (ROOT / "about.html").write_text(render_about(config))
     (ROOT / "archive.html").write_text(render_archive(config))
     (ROOT / "subscribe.html").write_text(render_subscribe(config))
     print(f"Built index.html: {len(articles)} article(s), domain {config['domain']}")
     if len(pages) > 1:
         print(f"Paginated into {len(pages)} pages ({config.get('articles_per_page', 5)} per page): " + ", ".join(f for f, _ in pages))
-    print("Built archive.html and subscribe.html (fake archive / fake $19.99/month signup — client-side only, nothing sent or stored)")
+    print("Built about.html, archive.html and subscribe.html (fake archive / fake $19.99/month signup — client-side only, nothing sent or stored)")

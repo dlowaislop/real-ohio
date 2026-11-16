@@ -38,7 +38,8 @@ cd /root/work/real-ohio && python3 build.py
 
 ```sh
 sudo mkdir -p /var/www/real-ohio
-sudo cp /root/work/real-ohio/index.html /root/work/real-ohio/archive.html /root/work/real-ohio/subscribe.html /var/www/real-ohio/
+sudo cp /root/work/real-ohio/index.html /root/work/real-ohio/about.html /root/work/real-ohio/archive.html /root/work/real-ohio/subscribe.html /var/www/real-ohio/
+sudo cp /root/work/real-ohio/page*.html /var/www/real-ohio/ 2>/dev/null || true  # paginated pages, if any
 sudo cp -r /root/work/real-ohio/images /var/www/real-ohio/   # article photos, if present
 sudo chown -R root:root /var/www/real-ohio
 sudo chmod 644 /var/www/real-ohio/*.html
