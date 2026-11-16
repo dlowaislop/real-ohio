@@ -6,10 +6,14 @@
 // Auth: cookie session, 12h. Only CLI-created users (scripts/users.mjs)
 // can log in; there is no signup. Passwords are scrypt hashes in
 // data/users.json (see server/auth.mjs).
-// Writes: articles are articles/*.json with status "draft" | "published".
-// After every write this server runs `python3 build.py`, which rebuilds
-// the public index.html from published articles only — so publishing is
-// what makes an article appear on the public site. Drafts never appear.
+// Writes: articles are articles/*.json (drafts; GitHub keeps these).
+// Publish state lives only in data/published.json (gitignored) —
+// publishing/unpublishing never changes a draft file, it only records
+// the slug there. After every write this server runs `python3 build.py`,
+// which rebuilds the public index.html from published articles only —
+// so publishing is what makes an article appear on the public site.
+// Drafts never appear. rebuild() also copies the built site to the
+// configured web_root, so the live site updates immediately.
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
@@ -58,6 +62,41 @@ function listArticles() {
     .filter((f) => f.endsWith(".json"))
     .map((f) => JSON.parse(fs.readFileSync(path.join(ARTICLES_DIR, f), "utf8")))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+// --- Publish state: popcorn-local only, never in GitHub ---
+// GitHub stores the drafts only. Whether an article is published lives
+// in data/published.json (gitignored), a map slug -> { published, by, at }.
+// Publishing/unpublishing touches ONLY this file and rebuilds the site —
+// the draft article file is left exactly as it is, so it stays in sync
+// with GitHub. build.py applies the same override when rebuilding.
+const PUBLISHED_PATH = path.join(ROOT, "data", "published.json");
+function loadPublished() {
+  try {
+    return JSON.parse(fs.readFileSync(PUBLISHED_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+function savePublished(state) {
+  // Drop entries for articles that no longer exist.
+  const slugs = new Set(listArticles().map((a) => a.slug));
+  for (const slug of Object.keys(state)) {
+    if (!slugs.has(slug)) delete state[slug];
+  }
+  fs.mkdirSync(path.join(ROOT, "data"), { recursive: true });
+  fs.writeFileSync(PUBLISHED_PATH, JSON.stringify(state, null, 2) + "\n");
+}
+function effectiveStatus(article) {
+  const entry = loadPublished()[article.slug];
+  if (entry && typeof entry.published === "boolean") {
+    return entry.published ? "published" : "draft";
+  }
+  // No local override: fall back to the status in the draft file.
+  return article.status === "published" ? "published" : "draft";
+}
+function withEffectiveStatus(article) {
+  return { ...article, status: effectiveStatus(article) };
 }
 function rebuild() {
   execFileSync("python3", ["build.py"], { cwd: ROOT, stdio: "pipe" });
@@ -176,7 +215,7 @@ const server = http.createServer(async (req, res) => {
 
     // --- Articles ---
     if (pathname === "/api/articles" && req.method === "GET") {
-      sendJson(res, 200, { articles: listArticles() });
+      sendJson(res, 200, { articles: listArticles().map(withEffectiveStatus) });
       return;
     }
     if (pathname === "/api/articles" && req.method === "POST") {
@@ -228,7 +267,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       if (req.method === "GET" && !action) {
-        sendJson(res, 200, { article: JSON.parse(fs.readFileSync(file, "utf8")) });
+        sendJson(res, 200, { article: withEffectiveStatus(JSON.parse(fs.readFileSync(file, "utf8"))) });
         return;
       }
       if (req.method === "PUT" && !action) {
@@ -244,7 +283,7 @@ const server = http.createServer(async (req, res) => {
         article.updated_at = new Date().toISOString();
         fs.writeFileSync(file, JSON.stringify(article, null, 2) + "\n");
         rebuild();
-        sendJson(res, 200, { article });
+        sendJson(res, 200, { article: withEffectiveStatus(article) });
         return;
       }
       if (req.method === "POST" && (action === "publish" || action === "unpublish")) {
@@ -253,15 +292,19 @@ const server = http.createServer(async (req, res) => {
           sendJson(res, 400, { error: "Cannot publish: fill in a headline, at least one real-summary paragraph, and at least one Ohio paragraph first." });
           return;
         }
-        article.status = action === "publish" ? "published" : "draft";
-        article.author = user;
-        article.updated_at = new Date().toISOString();
-        fs.writeFileSync(file, JSON.stringify(article, null, 2) + "\n");
+        // Publish state lives ONLY in data/published.json — the draft
+        // file is left alone so it stays in sync with GitHub.
+        const published = loadPublished();
+        published[slug] = { published: action === "publish", by: user, at: new Date().toISOString() };
+        savePublished(published);
         rebuild();
-        sendJson(res, 200, { article });
+        sendJson(res, 200, { article: withEffectiveStatus(article) });
         return;
       }
       if (req.method === "DELETE" && !action) {
+        const published = loadPublished();
+        delete published[slug];
+        savePublished(published);
         fs.unlinkSync(file);
         rebuild();
         sendJson(res, 200, { ok: true });

@@ -30,12 +30,29 @@ ARCHIVE_TOTAL = "3,214"
 def load_config():
     return json.loads((ROOT / "config.json").read_text())
 
+def load_published_override():
+    # Popcorn-local publish state (data/published.json, gitignored):
+    # slug -> {"published": bool, ...}. Publishing in /masthead updates
+    # only this file, never the draft — so GitHub keeps the drafts and
+    # the live site is built from the override. No override for a slug
+    # means: fall back to the status in the draft file.
+    try:
+        return json.loads((ROOT / "data" / "published.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
 def load_articles():
     articles = []
     for path in sorted((ROOT / "articles").glob("*.json")):
         articles.append(json.loads(path.read_text()))
+    override = load_published_override()
     # Drafts never appear on the public site — only published articles.
-    articles = [a for a in articles if a.get("status", "published") == "published"]
+    def is_published(a):
+        entry = override.get(a.get("slug"))
+        if isinstance(entry, dict) and isinstance(entry.get("published"), bool):
+            return entry["published"]
+        return a.get("status", "published") == "published"
+    articles = [a for a in articles if is_published(a)]
     articles.sort(key=lambda a: a["date"], reverse=True)
     return articles
 

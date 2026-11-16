@@ -174,8 +174,13 @@ Log in at `/masthead` with that username/password. Sessions last 12h.
 1. New article → draft (in `/masthead`, or a `status: "draft"` JSON file).
 2. Edit in `/masthead` until it reads right.
 3. **Publish** — the public `index.html` on popcorn rebuilds immediately.
-4. Keep GitHub in sync from popcorn:
-   `git add -A && git commit -m "Publish: <headline>" && git push`
+
+Publishing is popcorn-local by design: GitHub stores the drafts only.
+Publishing records the article in `data/published.json` (gitignored)
+and rebuilds the site — it never changes the draft file, so there is
+nothing to commit or push after you publish. If you edit a draft's
+text in `/masthead` and want that edit in GitHub, commit and push the
+article file from the checkout on popcorn.
 
 ## Changing the domain later
 

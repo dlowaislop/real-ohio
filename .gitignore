@@ -1,4 +1,7 @@
 # Admin users (password hashes) — never commit.
 data/users.json
+# Publish state (which drafts are live) — popcorn-local only, never commit.
+# GitHub stores the drafts; publishing touches only this file.
+data/published.json
 # Local runtime state
 data/*.log
