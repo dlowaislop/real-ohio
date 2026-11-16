@@ -267,6 +267,28 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // --- Publish all drafts ---
+    if (pathname === "/api/articles/publish-all" && req.method === "POST") {
+      const now = new Date().toISOString();
+      const published = loadPublished();
+      const done = [];
+      const skipped = [];
+      for (const article of listArticles()) {
+        if (effectiveStatus(article) === "published") continue;
+        // Same completeness check as publishing one article.
+        if (!article.headline || !article.real_summary?.length || !article.ohio_story?.length) {
+          skipped.push(article.slug);
+          continue;
+        }
+        published[article.slug] = { published: true, by: user, at: now };
+        done.push(article.slug);
+      }
+      savePublished(published);
+      rebuild();
+      sendJson(res, 200, { published: done, skipped });
+      return;
+    }
+
     const m = pathname.match(/^\/api\/articles\/([^/]+)(\/(publish|unpublish))?$/);
     if (m) {
       const slug = decodeURIComponent(m[1]);

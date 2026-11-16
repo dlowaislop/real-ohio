@@ -82,8 +82,47 @@ curl -s -b /tmp/realohio-cookies.txt -X DELETE http://127.0.0.1:3016/api/article
 python3 build.py | grep -q "1 article" || fail "final build should show 1 article"
 pass "delete works, public site back to 1 article"
 
+# Publish all — two complete drafts publish at once, one incomplete
+# draft is skipped, and no draft file is changed.
+for s in test-all-one test-all-two; do
+  curl -s -b /tmp/realohio-cookies.txt -X POST http://127.0.0.1:3016/api/articles -H 'content-type: application/json' -d "{\"slug\":\"$s\",\"date\":\"2026-11-15\",\"headline\":\"TEST ALL — $s\",\"dek\":\"test\",\"ohio_town\":\"Testville, Ohio\",\"real_event_date\":\"2026-11-15\",\"real_summary\":\"Real paragraph one.\",\"ohio_story\":\"Ohio paragraph one.\",\"source_name\":\"Associated Press\",\"source_url\":\"https://example.com\"}" | grep -q '"status":"draft"' || fail "create $s"
+done
+curl -s -b /tmp/realohio-cookies.txt -X POST http://127.0.0.1:3016/api/articles -H 'content-type: application/json' -d '{"slug":"test-all-empty","date":"2026-11-15","headline":"TEST ALL — empty","dek":"test","ohio_town":"Testville, Ohio","real_event_date":"2026-11-15","source_name":"Associated Press","source_url":"https://example.com"}' | grep -q '"status":"draft"' || fail "create test-all-empty"
+RESP=$(curl -s -b /tmp/realohio-cookies.txt -X POST http://127.0.0.1:3016/api/articles/publish-all)
+echo "$RESP" | grep -q "test-all-one" || fail "publish-all should publish test-all-one"
+echo "$RESP" | grep -q "test-all-two" || fail "publish-all should publish test-all-two"
+echo "$RESP" | grep -q "test-all-empty" || fail "publish-all should report the skipped draft"
+grep -q "TEST ALL — test-all-one" index.html || fail "publish-all article one missing from index.html"
+grep -q "TEST ALL — test-all-two" index.html || fail "publish-all article two missing from index.html"
+grep -q "TEST ALL — empty" index.html && fail "incomplete draft must not be published by publish-all"
+grep -q '"status": "draft"' articles/2026-11-15-test-all-one.json || fail "publish-all must leave draft files as draft"
+# Publish-all publishes EVERY complete draft, so the count is the FAA
+# article + all 26 retrospective drafts + the 2 test drafts. Compute it
+# from the files + published.json instead of hardcoding it.
+EXPECTED=$(python3 -c "
+import json, glob
+arts = [json.load(open(f)) for f in glob.glob('articles/*.json')]
+try: o = json.load(open('data/published.json'))
+except FileNotFoundError: o = {}
+n = 0
+for a in arts:
+    e = o.get(a['slug'])
+    pub = e['published'] if isinstance(e, dict) and isinstance(e.get('published'), bool) else a.get('status') == 'published'
+    n += bool(pub)
+print(n)
+")
+python3 build.py | grep -q "$EXPECTED article" || fail "build should show $EXPECTED published articles after publish-all"
+pass "publish all publishes complete drafts, skips incomplete ones, leaves draft files alone"
+for s in test-all-one test-all-two test-all-empty; do
+  curl -s -b /tmp/realohio-cookies.txt -X DELETE http://127.0.0.1:3016/api/articles/$s | grep -q '"ok":true' || fail "delete $s"
+done
+grep -rq "TEST ALL" index.html page*.html 2>/dev/null && fail "test drafts still on the public site after cleanup"
+
 kill $SERVER_PID
 bun scripts/users.mjs delete testeditor | grep -q Deleted || fail "CLI delete"
 bun scripts/users.mjs list | grep -q "No admin users" || fail "user list should be empty after delete"
 rm -f /tmp/realohio-cookies.txt /tmp/realohio-test-server.log data/published.json
+# Removing data/published.json restores the pre-test state (only the FAA
+# article published via its file status).
+python3 build.py | grep -q "1 article" || fail "final build should show 1 article after cleanup"
 echo "ALL DRAFT-SYSTEM TESTS PASSED"

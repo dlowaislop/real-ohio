@@ -42,8 +42,9 @@
   <div id="app" hidden>
     <div class="row"><p>Logged in as <strong id="me"></strong></p><button class="secondary" id="logout-btn">Log out</button></div>
     <div class="card">
-      <div class="row"><h2 style="margin:0">Articles</h2><button id="new-btn">+ New draft</button></div>
+      <div class="row"><h2 style="margin:0">Articles</h2><span><button id="publish-all-btn">Publish all drafts</button><button id="new-btn">+ New draft</button></span></div>
       <p class="muted">Only <strong>published</strong> articles appear on the public site. Drafts are visible here only.</p>
+      <p class="muted" id="publish-all-status"></p>
       <div id="list"></div>
     </div>
 
@@ -154,6 +155,16 @@ $("login-btn").onclick = async () => {
 };
 $("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") $("login-btn").click(); });
 $("logout-btn").onclick = async () => { await api("/api/logout", { method: "POST" }); init(); };
+$("publish-all-btn").onclick = async () => {
+  const n = document.querySelectorAll(".badge.draft").length;
+  if (!n) { $("publish-all-status").textContent = "No drafts to publish."; return; }
+  if (!confirm(`Publish all ${n} draft article(s)? They will appear on the public site immediately.`)) return;
+  try {
+    const { published, skipped } = await api("/api/articles/publish-all", { method: "POST" });
+    $("publish-all-status").textContent = `Published ${published.length} article(s).` + (skipped.length ? ` Skipped ${skipped.length} incomplete draft(s): ${skipped.join(", ")}` : "");
+    await loadList();
+  } catch (e) { $("publish-all-status").textContent = e.message; }
+};
 $("new-btn").onclick = () => {
   currentSlug = null; isNew = true;
   $("editor-title").textContent = "New draft";
