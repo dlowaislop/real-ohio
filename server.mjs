@@ -32,6 +32,20 @@ function slugOk(s) {
 function articlePath(slug) {
   return path.join(ARTICLES_DIR, `${slug}.json`);
 }
+// Article files on disk are date-prefixed (2026-11-12-microsoft-365-outage.json)
+// but the slug field inside is just "microsoft-365-outage" — and that is
+// what the editor list sends back. So resolve by the slug field, not the
+// filename, falling back to the plain <slug>.json name for older files.
+function findArticlePath(slug) {
+  if (fs.existsSync(articlePath(slug))) return articlePath(slug);
+  for (const f of fs.readdirSync(ARTICLES_DIR).filter((x) => x.endsWith(".json"))) {
+    try {
+      const a = JSON.parse(fs.readFileSync(path.join(ARTICLES_DIR, f), "utf8"));
+      if (a.slug === slug) return path.join(ARTICLES_DIR, f);
+    } catch { /* skip unreadable files */ }
+  }
+  return null;
+}
 function listArticles() {
   return fs
     .readdirSync(ARTICLES_DIR)
@@ -150,7 +164,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: "Slug must be lowercase letters, digits, dashes, e.g. 2026-11-20-my-story (use the article slug, not the filename date)." });
         return;
       }
-      if (fs.existsSync(articlePath(slug))) {
+      if (findArticlePath(slug)) {
         sendJson(res, 409, { error: `An article with slug "${slug}" already exists.` });
         return;
       }
@@ -175,7 +189,8 @@ const server = http.createServer(async (req, res) => {
         updated_at: now,
       };
       fs.mkdirSync(ARTICLES_DIR, { recursive: true });
-      fs.writeFileSync(articlePath(slug), JSON.stringify(article, null, 2) + "\n");
+      // Date-prefixed filename, matching the existing articles on disk.
+      fs.writeFileSync(path.join(ARTICLES_DIR, `${article.date}-${slug}.json`), JSON.stringify(article, null, 2) + "\n");
       rebuild();
       sendJson(res, 201, { article });
       return;
@@ -185,17 +200,18 @@ const server = http.createServer(async (req, res) => {
     if (m) {
       const slug = decodeURIComponent(m[1]);
       const action = m[3];
-      if (!slugOk(slug) || !fs.existsSync(articlePath(slug))) {
+      const file = slugOk(slug) ? findArticlePath(slug) : null;
+      if (!file) {
         sendJson(res, 404, { error: "No such article." });
         return;
       }
       if (req.method === "GET" && !action) {
-        sendJson(res, 200, { article: JSON.parse(fs.readFileSync(articlePath(slug), "utf8")) });
+        sendJson(res, 200, { article: JSON.parse(fs.readFileSync(file, "utf8")) });
         return;
       }
       if (req.method === "PUT" && !action) {
         const body = await readBody(req);
-        const article = JSON.parse(fs.readFileSync(articlePath(slug), "utf8"));
+        const article = JSON.parse(fs.readFileSync(file, "utf8"));
         for (const k of ["headline", "dek", "ohio_town", "date", "real_event_date", "source_name", "source_url", "source_note"]) {
           if (typeof body[k] === "string") article[k] = body[k];
         }
@@ -204,13 +220,13 @@ const server = http.createServer(async (req, res) => {
         if (typeof body.ohio_quotes_text === "string") article.ohio_quotes = parseQuotes(body.ohio_quotes_text);
         article.author = user;
         article.updated_at = new Date().toISOString();
-        fs.writeFileSync(articlePath(slug), JSON.stringify(article, null, 2) + "\n");
+        fs.writeFileSync(file, JSON.stringify(article, null, 2) + "\n");
         rebuild();
         sendJson(res, 200, { article });
         return;
       }
       if (req.method === "POST" && (action === "publish" || action === "unpublish")) {
-        const article = JSON.parse(fs.readFileSync(articlePath(slug), "utf8"));
+        const article = JSON.parse(fs.readFileSync(file, "utf8"));
         if (action === "publish" && (!article.headline || !article.real_summary?.length || !article.ohio_story?.length)) {
           sendJson(res, 400, { error: "Cannot publish: fill in a headline, at least one real-summary paragraph, and at least one Ohio paragraph first." });
           return;
@@ -218,13 +234,13 @@ const server = http.createServer(async (req, res) => {
         article.status = action === "publish" ? "published" : "draft";
         article.author = user;
         article.updated_at = new Date().toISOString();
-        fs.writeFileSync(articlePath(slug), JSON.stringify(article, null, 2) + "\n");
+        fs.writeFileSync(file, JSON.stringify(article, null, 2) + "\n");
         rebuild();
         sendJson(res, 200, { article });
         return;
       }
       if (req.method === "DELETE" && !action) {
-        fs.unlinkSync(articlePath(slug));
+        fs.unlinkSync(file);
         rebuild();
         sendJson(res, 200, { ok: true });
         return;

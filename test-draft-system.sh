@@ -45,6 +45,13 @@ pass "login works"
 curl -s -b /tmp/realohio-cookies.txt http://127.0.0.1:3016/api/articles | grep -q "faa-ground-stop" || fail "article list"
 pass "article list works"
 
+# Edit (GET by slug) must work for the real articles, whose files are
+# date-prefixed on disk (2026-11-12-microsoft-365-outage.json) while the
+# slug is just "microsoft-365-outage". This is the bug that broke the
+# Masthead Edit button live on Nov 15, 2026 (GET returned 404).
+curl -s -b /tmp/realohio-cookies.txt http://127.0.0.1:3016/api/articles/microsoft-365-outage | grep -q "Dublin Family" || fail "GET by slug for a date-prefixed article (Edit)"
+pass "edit opens a real date-prefixed article by slug"
+
 # Create a draft — it must NOT appear on the public site
 curl -s -b /tmp/realohio-cookies.txt -X POST http://127.0.0.1:3016/api/articles -H 'content-type: application/json' -d '{"slug":"test-draft-ohio","date":"2026-11-15","headline":"TEST DRAFT — do not publish","dek":"test","ohio_town":"Testville, Ohio","real_event_date":"2026-11-15","real_summary":"Real paragraph one.","ohio_story":"Ohio paragraph one.","source_name":"Associated Press","source_url":"https://example.com"}' | grep -q '"status":"draft"' || fail "new article should be draft"
 grep -q "TEST DRAFT" index.html && fail "draft leaked into public index.html"
@@ -66,7 +73,7 @@ pass "unpublish pulls it back off the public site"
 
 # Delete the test draft, rebuild, verify clean state
 curl -s -b /tmp/realohio-cookies.txt -X DELETE http://127.0.0.1:3016/api/articles/test-draft-ohio | grep -q '"ok":true' || fail "delete draft"
-[ -f articles/test-draft-ohio.json ] && fail "draft file still exists"
+[ -f articles/2026-11-15-test-draft-ohio.json ] && fail "draft file still exists"
 python3 build.py | grep -q "1 article" || fail "final build should show 1 article"
 pass "delete works, public site back to 1 article"
 

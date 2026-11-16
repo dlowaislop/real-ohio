@@ -101,7 +101,16 @@ async function loadList() {
 function escapeHtml(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 window.openEditor = async (slug) => {
-  const { article: a } = await api("/api/articles/" + encodeURIComponent(slug));
+  let a;
+  try {
+    ({ article: a } = await api("/api/articles/" + encodeURIComponent(slug)));
+  } catch (e) {
+    // Never fail silently — show the error in the editor card.
+    $("editor").hidden = false;
+    $("editor-title").textContent = "Edit — " + slug;
+    $("edit-error").textContent = "Could not open this article: " + e.message;
+    return;
+  }
   currentSlug = slug; isNew = false;
   $("editor-title").textContent = "Edit — " + a.status;
   $("f-slug").value = a.slug; $("f-slug").disabled = true;
