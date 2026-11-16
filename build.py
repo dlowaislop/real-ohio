@@ -21,6 +21,7 @@ no backend. Do not "fix" them into a real login or a real checkout.
 import html
 import json
 import pathlib
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).parent
 
@@ -118,6 +119,9 @@ def page_head(config, title, show_parody=True, description=None, canonical=None,
   .back {{ font-family: system-ui, sans-serif; font-weight: 700; margin-bottom: 20px; }}
   .back a {{ text-decoration: none; }}
   .back a:hover {{ text-decoration: underline; }}
+  .share {{ font-family: system-ui, sans-serif; font-size: .9rem; margin-top: 24px; }}
+  .share a {{ margin: 0 4px; }}
+  .share-btn {{ font: inherit; font-size: .9rem; font-weight: 700; padding: 4px 10px; border: 1.5px solid #1c1a17; border-radius: 4px; background: #fff; color: #1c1a17; cursor: pointer; margin: 0 4px; }}
   .price {{ font-size: 2rem; font-weight: 700; font-family: system-ui, sans-serif; }}
 </style>
 </head>
@@ -127,17 +131,52 @@ def page_head(config, title, show_parody=True, description=None, canonical=None,
 {parody}
 """
 
+COPY_SCRIPT = """
+<script>
+function copyShareLink(btn) {
+  var url = btn.getAttribute('data-url');
+  function done() { var t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(function() { btn.textContent = t; }, 2000); }
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, fallback);
+  } else { fallback(); }
+}
+</script>
+"""
+
 def page_foot(config):
     return f"""
 <footer>{html.escape(config['tagline'])} &middot; {html.escape(config['base_url'])}</footer>
+""" + COPY_SCRIPT + """
 </body>
 </html>
 """
 
+def share_row(config, a):
+    """Share links for an article. Facebook, X, and Threads all offer a
+    web share/intent URL. TikTok and Instagram do not, so they are
+    covered by the Copy link button — copy the link and paste it into
+    the app."""
+    url = f"{config['base_url']}/stories/{a['id']}.html"
+    enc_url = urllib.parse.quote(url, safe="")
+    enc_text = urllib.parse.quote(a['headline'], safe="")
+    return f"""
+      <p class="share">Share:
+        <a href="https://www.facebook.com/sharer/sharer.php?u={enc_url}" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://twitter.com/intent/tweet?url={enc_url}&amp;text={enc_text}" target="_blank" rel="noopener">X</a>
+        <a href="https://www.threads.net/intent/post?text={enc_text}%20{enc_url}" target="_blank" rel="noopener">Threads</a>
+        <button type="button" class="share-btn" data-url="{html.escape(url)}" onclick="copyShareLink(this)" title="Copy the link to paste into TikTok or Instagram">Copy link</button>
+      </p>"""
+
 def figure(a, src, prefix=""):
     return f'<figure><img src="{html.escape(prefix + src)}" alt="{html.escape(a["headline"])}"></figure>'
 
-def render_card(a, link_headline=False, asset_prefix=""):
+def render_card(config, a, link_headline=False, asset_prefix=""):
     # asset_prefix is "../" on standalone article pages (stories/),
     # where the images live one level up; "" on the front pages.
     quotes = "".join(
@@ -169,6 +208,7 @@ def render_card(a, link_headline=False, asset_prefix=""):
       {second}
       {quotes}
       {rest}
+      {share_row(config, a)}
     </article>"""
 
 def page_filename(n):
@@ -176,7 +216,7 @@ def page_filename(n):
     return "index.html" if n == 1 else f"page{n}.html"
 
 def render_index_page(config, page_articles, page, total_pages):
-    stories = "\n".join(render_card(a, link_headline=True) for a in page_articles)
+    stories = "\n".join(render_card(config, a, link_headline=True) for a in page_articles)
     links = []
     if page > 1:
         links.append(f'<a href="{page_filename(page - 1)}">&larr; Newer stories</a>')
@@ -253,7 +293,7 @@ def render_article_page(config, article, newer=None, older=None):
                      description=article.get('dek') or None,
                      canonical=canonical, link_prefix="../") + f"""<main>
 <p class="back"><a href="../index.html">&larr; Back to the latest stories</a></p>
-{render_card(article, asset_prefix="../")}
+{render_card(config, article, asset_prefix="../")}
 {nav}
 </main>
 """ + page_foot(config)
