@@ -153,7 +153,7 @@ def render_card(a, link_headline=False, asset_prefix=""):
     rest = "".join(figure(a, src, asset_prefix) for src in images[2:])
     headline = html.escape(a['headline'])
     if link_headline:
-        headline = f'<a href="stories/{html.escape(a["slug"])}.html">{headline}</a>'
+        headline = f'<a href="stories/{html.escape(a["id"])}.html">{headline}</a>'
     return f"""
     <article class="story" id="{html.escape(a['slug'])}">
       <div class="kicker">Real news about Real Ohioans &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
@@ -240,13 +240,13 @@ def render_article_page(config, article, newer=None, older=None):
     """
     links = []
     if newer:
-        links.append(f'<a href="{html.escape(newer["slug"])}.html">&larr; Newer: {html.escape(newer["headline"])}</a>')
+        links.append(f'<a href="{html.escape(newer["id"])}.html">&larr; Newer: {html.escape(newer["headline"])}</a>')
     if older:
-        links.append(f'<a href="{html.escape(older["slug"])}.html">Older: {html.escape(older["headline"])} &rarr;</a>')
+        links.append(f'<a href="{html.escape(older["id"])}.html">Older: {html.escape(older["headline"])} &rarr;</a>')
     nav = ""
     if links:
         nav = '<nav class="pagination">' + " &middot; ".join(links) + "</nav>"
-    canonical = f"{config['base_url']}/stories/{article['slug']}.html"
+    canonical = f"{config['base_url']}/stories/{article['id']}.html"
     return page_head(config, article['headline'], show_parody=False,
                      description=article.get('dek') or None,
                      canonical=canonical) + f"""<main>
@@ -268,7 +268,9 @@ def render_article_pages(config, articles):
     for i, a in enumerate(articles):
         newer = articles[i - 1] if i > 0 else None
         older = articles[i + 1] if i + 1 < len(articles) else None
-        filename = f"{a['slug']}.html"
+        # Datestamped filename: stories/2026-11-15-faa-ground-stop-cruise-miss.html
+        # (id is the date-prefixed slug, matching the article JSON filenames).
+        filename = f"{a['id']}.html"
         (out_dir / filename).write_text(render_article_page(config, a, newer, older))
         written.append(filename)
     return written
