@@ -123,11 +123,9 @@ def render_index(config, articles):
       {figures}
       <h3>What actually happened</h3>
       {paras(a['real_summary'])}
-      <p class="source">Based on {html.escape(a['source_name'])} reporting, {html.escape(a['real_event_date'])}. <a href="{html.escape(a['source_url'])}">Read the real story</a>.</p>
       <h3>Meanwhile, in Ohio</h3>
       {paras(a['ohio_story'])}
       {quotes}
-      <p class="disclaimer">{html.escape(a['disclaimer'])}</p>
     </article>""")
     stories = "\n".join(cards)
     return page_head(config, config['tagline'], show_parody=False) + f"""<main>
