@@ -101,13 +101,13 @@ untracked build output, and publish state is gitignored, so after a
 publish the tree stays clean and the next pull just works. To refresh
 the live site after a pull that changes code or `build.py`, either
 do any save/publish/unpublish in `/masthead` — the admin server
-rebuilds and copies `index.html` / `archive.html` / `subscribe.html`
-and `images/` to `/var/www/real-ohio/` (config `web_root`) — or run
-manually:
+rebuilds and copies `index.html` / `archive.html` / `subscribe.html`,
+the paginated `page2.html` / `page3.html` / ... pages, and `images/`
+to `/var/www/real-ohio/` (config `web_root`) — or run manually:
 
 ```sh
 cd /root/work/real-ohio && python3 build.py
-sudo cp index.html archive.html subscribe.html /var/www/real-ohio/
+sudo cp index.html archive.html subscribe.html page*.html /var/www/real-ohio/
 ```
 
 No restart needed for content or `build.py` changes; restart

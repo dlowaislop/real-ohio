@@ -107,6 +107,16 @@ function rebuild() {
     for (const f of ["index.html", "archive.html", "subscribe.html"]) {
       fs.copyFileSync(path.join(ROOT, f), path.join(WEB_ROOT, f));
     }
+    // Paginated story pages (page2.html, page3.html, ...). Copy the
+    // ones build.py just wrote, and remove any stale ones left in the
+    // web root from when more articles were published.
+    const pageFiles = fs.readdirSync(ROOT).filter((f) => /^page\d+\.html$/.test(f));
+    for (const f of pageFiles) {
+      fs.copyFileSync(path.join(ROOT, f), path.join(WEB_ROOT, f));
+    }
+    for (const f of fs.readdirSync(WEB_ROOT).filter((f) => /^page\d+\.html$/.test(f))) {
+      if (!pageFiles.includes(f)) fs.unlinkSync(path.join(WEB_ROOT, f));
+    }
     const srcImages = path.join(ROOT, "images");
     const dstImages = path.join(WEB_ROOT, "images");
     if (fs.existsSync(srcImages)) {

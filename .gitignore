@@ -13,3 +13,4 @@ data/*.log
 index.html
 archive.html
 subscribe.html
+page*.html

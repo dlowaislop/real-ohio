@@ -104,6 +104,9 @@ def page_head(config, title, show_parody=True):
   .muted {{ color: #666; font-size: .9rem; font-family: system-ui, sans-serif; }}
   .locked {{ border-top: 1px solid #ddd; padding: 12px 0; font-family: system-ui, sans-serif; }}
   .locked .lock {{ float: right; }}
+  .pagination {{ text-align: center; font-family: system-ui, sans-serif; font-weight: 700; margin: 8px 0 32px; }}
+  .pagination a {{ text-decoration: none; }}
+  .pagination a:hover {{ text-decoration: underline; }}
   .price {{ font-size: 2rem; font-weight: 700; font-family: system-ui, sans-serif; }}
 </style>
 </head>
@@ -120,19 +123,17 @@ def page_foot(config):
 </html>
 """
 
-def render_index(config, articles):
-    cards = []
-    for a in articles:
-        quotes = "".join(
-            f'<blockquote><p>“{html.escape(q["quote"])}”</p>'
-            f'<cite>— {html.escape(q["speaker"])}</cite></blockquote>'
-            for q in a.get("ohio_quotes", [])
-        )
-        figures = "".join(
-            f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
-            for src in a.get("images", [])
-        )
-        cards.append(f"""
+def render_card(a):
+    quotes = "".join(
+        f'<blockquote><p>“{html.escape(q["quote"])}”</p>'
+        f'<cite>— {html.escape(q["speaker"])}</cite></blockquote>'
+        for q in a.get("ohio_quotes", [])
+    )
+    figures = "".join(
+        f'<figure><img src="{html.escape(src)}" alt="{html.escape(a["headline"])}"></figure>'
+        for src in a.get("images", [])
+    )
+    return f"""
     <article class="story" id="{html.escape(a['slug'])}">
       <div class="kicker">Real news about Real Ohioans &middot; {html.escape(a['date'])} &middot; {html.escape(a['ohio_town'])}</div>
       <h2>{html.escape(a['headline'])}</h2>
@@ -143,14 +144,55 @@ def render_index(config, articles):
       <h3>Meanwhile, in Ohio</h3>
       {paras(a['ohio_story'])}
       {quotes}
-    </article>""")
-    stories = "\n".join(cards)
-    return page_head(config, config['tagline'], show_parody=False) + f"""<main>
+    </article>"""
+
+def page_filename(n):
+    # Page 1 is index.html; later pages are page2.html, page3.html, ...
+    return "index.html" if n == 1 else f"page{n}.html"
+
+def render_index_page(config, page_articles, page, total_pages):
+    stories = "\n".join(render_card(a) for a in page_articles)
+    links = []
+    if page > 1:
+        links.append(f'<a href="{page_filename(page - 1)}">&larr; Newer stories</a>')
+    if page < total_pages:
+        links.append(f'<a href="{page_filename(page + 1)}">Older stories &rarr;</a>')
+    pagination = ""
+    if total_pages > 1:
+        pagination = (
+            '<nav class="pagination">' + " &middot; ".join(links)
+            + f' &middot; <span class="muted">Page {page} of {total_pages}</span></nav>'
+        )
+    # The archive plug only goes on the last page — earlier pages point
+    # at the next page of real stories instead.
+    archive_card = ""
+    if page == total_pages:
+        archive_card = f"""<div class="card"><h2>Looking for older stories?</h2>
+<p>They're all in the <a href="archive.html">News Archive</a> — {html.escape(ARCHIVE_TOTAL)} stories and counting, going back to 2019. Archive access is for subscribers (<a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a>).</p></div>"""
+    title = config['tagline'] if page == 1 else f"{config['tagline']} · Page {page}"
+    return page_head(config, title, show_parody=False) + f"""<main>
 {stories}
-<div class="card"><h2>Looking for older stories?</h2>
-<p>They're all in the <a href="archive.html">News Archive</a> — {html.escape(ARCHIVE_TOTAL)} stories and counting, going back to 2019. Archive access is for subscribers (<a href="subscribe.html">Subscribe — {html.escape(ARCHIVE_PRICE)}</a>).</p></div>
+{pagination}
+{archive_card}
 </main>
 """ + page_foot(config)
+
+def render_index(config, articles):
+    """Split published articles into pages of config articles_per_page.
+
+    Returns a list of (filename, html) — page 1 is index.html, later
+    pages are page2.html, page3.html, ... — and deletes any stale
+    page*.html left over from when more articles were published.
+    """
+    per_page = int(config.get("articles_per_page", 5))
+    chunks = [articles[i:i + per_page] for i in range(0, len(articles), per_page)] or [[]]
+    total_pages = len(chunks)
+    for stale in ROOT.glob("page*.html"):
+        stale.unlink()
+    return [
+        (page_filename(n), render_index_page(config, chunk, n, total_pages))
+        for n, chunk in enumerate(chunks, start=1)
+    ]
 
 def render_archive(config):
     # Locked teaser rows: invented parody headlines, members-only, no
@@ -243,8 +285,12 @@ document.getElementById("subscribe-form").addEventListener("submit", function (e
 if __name__ == "__main__":
     config = load_config()
     articles = load_articles()
-    (ROOT / "index.html").write_text(render_index(config, articles))
+    pages = render_index(config, articles)
+    for filename, text in pages:
+        (ROOT / filename).write_text(text)
     (ROOT / "archive.html").write_text(render_archive(config))
     (ROOT / "subscribe.html").write_text(render_subscribe(config))
     print(f"Built index.html: {len(articles)} article(s), domain {config['domain']}")
+    if len(pages) > 1:
+        print(f"Paginated into {len(pages)} pages ({config.get('articles_per_page', 5)} per page): " + ", ".join(f for f, _ in pages))
     print("Built archive.html and subscribe.html (fake archive / fake $19.99/month signup — client-side only, nothing sent or stored)")
