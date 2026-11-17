@@ -43,7 +43,7 @@ cd /root/work/real-ohio && python3 build.py
 
 ```sh
 sudo mkdir -p /var/www/real-ohio
-sudo cp /root/work/real-ohio/index.html /root/work/real-ohio/about.html /root/work/real-ohio/archive.html /root/work/real-ohio/subscribe.html /var/www/real-ohio/
+sudo cp /root/work/real-ohio/index.html /root/work/real-ohio/about.html /root/work/real-ohio/archive.html /root/work/real-ohio/subscribe.html /root/work/real-ohio/feed.xml /var/www/real-ohio/
 sudo cp /root/work/real-ohio/page*.html /var/www/real-ohio/ 2>/dev/null || true  # paginated pages, if any
 sudo cp -r /root/work/real-ohio/stories /var/www/real-ohio/  # standalone article pages
 sudo cp -r /root/work/real-ohio/images /var/www/real-ohio/   # article photos, if present
@@ -122,7 +122,7 @@ to `/var/www/real-ohio/` (config `web_root`) — or run manually:
 
 ```sh
 cd /root/work/real-ohio && python3 build.py
-sudo cp index.html archive.html subscribe.html page*.html /var/www/real-ohio/
+sudo cp index.html archive.html subscribe.html feed.xml page*.html /var/www/real-ohio/
 ```
 
 No restart needed for content or `build.py` changes; restart

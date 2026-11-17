@@ -18,6 +18,8 @@ nothing — pressing Register always shows
 Both pages are pure static HTML/JS with no form action, no fetch, and
 no backend. Do not "fix" them into a real login or a real checkout.
 """
+import datetime
+import email.utils
 import html
 import json
 import pathlib
@@ -74,13 +76,14 @@ def page_head(config, title, show_parody=True, description=None, canonical=None,
     )
     desc = description if description is not None else config['description']
     canon = f'\n<link rel="canonical" href="{html.escape(canonical)}">' if canonical else ""
+    rss = f'\n<link rel="alternate" type="application/rss+xml" title="{html.escape(config["site_name"])}" href="{html.escape(config["base_url"])}/feed.xml">'
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} — {html.escape(config['site_name'])}</title>
-<meta name="description" content="{html.escape(desc)}">{canon}
+<meta name="description" content="{html.escape(desc)}">{canon}{rss}
 <style>
   body {{ margin: 0; background: #f7f3ea; color: #1c1a17; font-family: Georgia, 'Times New Roman', serif; line-height: 1.6; }}
   header {{ background: #bb0000; color: #fff; padding: 28px 20px 22px; text-align: center; border-bottom: 6px solid #1c1a17; }}
@@ -151,7 +154,7 @@ function copyShareLink(btn) {
 
 def page_foot(config):
     return f"""
-<footer>{html.escape(config['tagline'])} &middot; {html.escape(config['base_url'])}</footer>
+<footer>{html.escape(config['tagline'])} &middot; {html.escape(config['base_url'])} &middot; <a href="{html.escape(config['base_url'])}/feed.xml">RSS</a></footer>
 """ + COPY_SCRIPT + """
 </body>
 </html>
@@ -317,6 +320,36 @@ def render_article_pages(config, articles):
         written.append(filename)
     return written
 
+def render_feed(config, articles):
+    """RSS 2.0 feed of the published articles, at feed.xml. Each item
+    links to the article's standalone story page; pubDate is the
+    article date at midnight UTC."""
+    items = []
+    for a in articles:
+        url = f"{config['base_url']}/stories/{a['id']}.html"
+        pub = datetime.datetime.combine(
+            datetime.date.fromisoformat(a['date']), datetime.time.min,
+            tzinfo=datetime.timezone.utc)
+        items.append(f"""<item>
+<title>{html.escape(a['headline'])}</title>
+<link>{html.escape(url)}</link>
+<guid>{html.escape(url)}</guid>
+<pubDate>{email.utils.format_datetime(pub)}</pubDate>
+<description>{html.escape(a['dek'])}</description>
+</item>""")
+    items_text = "\n".join(items)
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>{html.escape(config['site_name'])}</title>
+<link>{html.escape(config['base_url'])}</link>
+<description>{html.escape(config['description'])}</description>
+<language>en-us</language>
+{items_text}
+</channel>
+</rss>
+"""
+
 def render_archive(config):
     # Locked teaser rows: invented parody headlines, members-only, no
     # full text anywhere — the point is the volume, not the stories.
@@ -415,7 +448,9 @@ if __name__ == "__main__":
     (ROOT / "about.html").write_text(render_about(config))
     (ROOT / "archive.html").write_text(render_archive(config))
     (ROOT / "subscribe.html").write_text(render_subscribe(config))
+    (ROOT / "feed.xml").write_text(render_feed(config, articles))
     print(f"Built index.html: {len(articles)} article(s), domain {config['domain']}")
+    print(f"Built feed.xml: {len(articles)} item(s)")
     if len(pages) > 1:
         print(f"Paginated into {len(pages)} pages ({config.get('articles_per_page', 5)} per page): " + ", ".join(f for f, _ in pages))
     print(f"Built {len(story_pages)} standalone article page(s) in stories/")
