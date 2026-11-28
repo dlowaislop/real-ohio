@@ -1,0 +1,7 @@
+# Real Ohio — allow all crawlers; sitemap for search engines.
+# (If the domain ever changes, update the Sitemap URL to match
+# config.json's base_url.)
+User-agent: *
+Allow: /
+
+Sitemap: https://www.realohio.us.com/sitemap.xml
