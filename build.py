@@ -5,7 +5,9 @@ Usage: python3 build.py
 Reads config.json (domain, tagline) and every articles/*.json file,
 newest first, and writes index.html, about.html, archive.html and
 subscribe.html (plus page2.html, page3.html, ... when there are more
-published articles than config articles_per_page).
+published articles than config articles_per_page), feed.xml, and
+sitemap.xml (front pages + static pages + one URL per published
+article, for search engines).
 No dependencies, no network.
 
 The News Archive is a gag, by design: there is no archive behind it.
@@ -350,6 +352,40 @@ def render_feed(config, articles):
 </rss>
 """
 
+def render_sitemap(config, articles):
+    """Sitemap XML for search engines, at sitemap.xml. Lists the front
+    pages, the static pages, and every published article's standalone
+    page, with lastmod dates. Regenerated on every build so it always
+    matches the published set (popcorn's published.json is the source
+    of truth — a local build without it only sees drafts marked
+    published in their own files)."""
+    base = config['base_url']
+    per_page = int(config.get("articles_per_page", 5))
+    chunks = [articles[i:i + per_page] for i in range(0, len(articles), per_page)] or [[]]
+    urls = []
+    # Front pages: page 1 is the site root.
+    for n, chunk in enumerate(chunks, start=1):
+        loc = base + "/" if n == 1 else f"{base}/page{n}.html"
+        lastmod = chunk[0]["date"] if chunk else None
+        urls.append((loc, lastmod, "1.0" if n == 1 else "0.7"))
+    for page in ("about.html", "archive.html", "subscribe.html"):
+        urls.append((f"{base}/{page}", None, "0.5"))
+    for a in articles:
+        urls.append((f"{base}/stories/{a['id']}.html", a["date"], "0.8"))
+    entries = "".join(
+        "  <url>\n"
+        f"    <loc>{html.escape(loc)}</loc>\n"
+        + (f"    <lastmod>{lastmod}</lastmod>\n" if lastmod else "")
+        + f"    <priority>{prio}</priority>\n"
+        "  </url>\n"
+        for loc, lastmod, prio in urls
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{entries}</urlset>\n"
+    )
+
 def render_archive(config):
     # Locked teaser rows: invented parody headlines, members-only, no
     # full text anywhere — the point is the volume, not the stories.
@@ -449,8 +485,10 @@ if __name__ == "__main__":
     (ROOT / "archive.html").write_text(render_archive(config))
     (ROOT / "subscribe.html").write_text(render_subscribe(config))
     (ROOT / "feed.xml").write_text(render_feed(config, articles))
+    (ROOT / "sitemap.xml").write_text(render_sitemap(config, articles))
     print(f"Built index.html: {len(articles)} article(s), domain {config['domain']}")
     print(f"Built feed.xml: {len(articles)} item(s)")
+    print(f"Built sitemap.xml: {len(articles)} article URL(s) + front pages")
     if len(pages) > 1:
         print(f"Paginated into {len(pages)} pages ({config.get('articles_per_page', 5)} per page): " + ", ".join(f for f, _ in pages))
     print(f"Built {len(story_pages)} standalone article page(s) in stories/")

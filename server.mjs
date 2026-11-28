@@ -104,7 +104,7 @@ function rebuild() {
   // present. Without this, publish/unpublish only rebuilt index.html in
   // the checkout and Apache kept serving the stale copy in /var/www.
   if (WEB_ROOT && fs.existsSync(WEB_ROOT)) {
-    for (const f of ["index.html", "about.html", "archive.html", "subscribe.html", "feed.xml"]) {
+    for (const f of ["index.html", "about.html", "archive.html", "subscribe.html", "feed.xml", "sitemap.xml", "robots.txt"]) {
       fs.copyFileSync(path.join(ROOT, f), path.join(WEB_ROOT, f));
     }
     // Paginated story pages (page2.html, page3.html, ...). Copy the
